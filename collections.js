@@ -36,20 +36,20 @@
   var DEFAULTS = { repo: "epiwen-data", branch: "main" };
   var MODAL_ID = "col-manager-modal";
 
-  // DEFAULT = no-auth corpus bundled in the app repo itself (pleuston/epiwen).
+  // DEFAULT = no-auth corpus bundled in the app repo itself (epiwen/epiweb).
   // Loaded without a token so the app works out of the box in workshops.
   // Records live under corpus/ in the app repo.
-  var DEFAULT_CORPUS = { owner: "pleuston", repo: "epiwen", branch: "main",
+  var DEFAULT_CORPUS = { owner: "epiwen", repo: "epiweb", branch: "main",
                          id: "corpus", title: "Workshop corpus" };
 
-  // SHARED = the default-ON public corpora in the PUBLIC repo epiwen-public:
+  // SHARED = the default-ON public corpora in the PUBLIC repo epiwen-data-public:
   // rubbings + the EpiDoc-CN corpus (sites · objects · inscriptions). Loaded for
   // everyone — no token required, no enable toggle (one shared on/off switch
   // covers both). Person/place authorities and bibliography stay in the
   // always-on core; the Stone Sutras corpus is an opt-in toggle in epiwen-data.
-  var SHARED = { owner: "pleuston", repo: "epiwen-public", branch: "main",
+  var SHARED = { owner: "epiwen", repo: "epiwen-data-public", branch: "main",
                  id: "rubbings", title: "Public corpus (rubbings)" };
-  var SHARED_CN = { owner: "pleuston", repo: "epiwen-public", branch: "main",
+  var SHARED_CN = { owner: "epiwen", repo: "epiwen-data-public", branch: "main",
                     id: "epidoc-cn", title: "EpiDoc-CN corpus (sites · objects · inscriptions)" };
   var SHARED_PKGS = [SHARED, SHARED_CN];
   function sharedPkg(id) {

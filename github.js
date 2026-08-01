@@ -15,7 +15,7 @@
     path:   "epiwen_gh_path"
   };
   var DEFAULTS = {
-    owner:  "pleuston",
+    owner:  "epiwen",
     repo:   "epiwen-data",
     branch: "main",
     path:   "records/"

@@ -10,8 +10,8 @@
 (function () {
   "use strict";
 
-  var TARGET = { owner: "pleuston", repo: "epiwen-public", branch: "main", dir: "collections/rubbings" };
-  var HARVEST_REPO = { owner: "pleuston", repo: "epiwen-public", branch: "main" };
+  var TARGET = { owner: "epiwen", repo: "epiwen-data-public", branch: "main", dir: "collections/rubbings" };
+  var HARVEST_REPO = { owner: "epiwen", repo: "epiwen-data-public", branch: "main" };
   var PAGE = 100;
 
   // ── generic helpers ─────────────────────────────────────────────────────────

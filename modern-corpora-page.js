@@ -19,13 +19,13 @@
     setTimeout(function () { t.className = ""; }, isErr ? 6000 : 3000);
   }
   // Persist the register back to the APP repo (modern-corpora.json lives in
-  // pleuston/epiwen, not the data backend): GET the blob sha, PUT the new
+  // epiwen/epiweb, not the data backend): GET the blob sha, PUT the new
   // content. Contents-API GET stops inlining content at 1 MB but still
   // returns the sha, and PUT is fine at this size.
   function putRegister(newDoc, message) {
     var t = token();
     if (!t) return Promise.reject(new Error("Sign in to edit the register."));
-    var url = "https://api.github.com/repos/pleuston/epiwen/contents/modern-corpora.json";
+    var url = "https://api.github.com/repos/epiwen/epiweb/contents/modern-corpora.json";
     var h = { "Authorization": "Bearer " + t, "Accept": "application/vnd.github+json",
               "X-GitHub-Api-Version": "2022-11-28" };
     return fetch(url + "?ref=main", { headers: h })

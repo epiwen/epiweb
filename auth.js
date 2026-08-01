@@ -33,7 +33,7 @@
     sessionStorage.removeItem(SESSION_KEY);
     ["epiwen_gh_username", "epiwen_gh_avatar", "epiwen_gh_name", "epiwen_gh_token"]
       .forEach(function (k) { localStorage.removeItem(k); });
-    localStorage.setItem("epiwen_gh_owner",  "pleuston");
+    localStorage.setItem("epiwen_gh_owner",  "epiwen");
     localStorage.setItem("epiwen_gh_repo",   "epiwen-data");
     localStorage.setItem("epiwen_gh_branch", "main");
     if (gated) { redirect(); return; }

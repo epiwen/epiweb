@@ -146,7 +146,7 @@
         if (storedUser === "guest") {
           [LS.username, LS.avatar, LS.name, LS.token].forEach(function (k) { localStorage.removeItem(k); });
           sessionStorage.removeItem(SESSION_KEY);
-          localStorage.setItem("epiwen_gh_owner",  "pleuston");
+          localStorage.setItem("epiwen_gh_owner",  "epiwen");
           localStorage.setItem("epiwen_gh_repo",   "epiwen-data");
           localStorage.setItem("epiwen_gh_branch", "main");
           storedUser = null;
@@ -274,7 +274,7 @@
                    (epiwen-workshop, from the now-retired "Browse as guest"
                    button — some browsers may still carry it) doesn't persist
                    and break EpiData reads like the map atlas or bibliography. */
-                localStorage.setItem("epiwen_gh_owner",  "pleuston");
+                localStorage.setItem("epiwen_gh_owner",  "epiwen");
                 localStorage.setItem("epiwen_gh_repo",   "epiwen-data");
                 localStorage.setItem("epiwen_gh_branch", "main");
                 localStorage.setItem("epiwen_gh_path",   "records/");

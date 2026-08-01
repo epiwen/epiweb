@@ -1,7 +1,7 @@
 /* data.js — the data backend client.
  *
  * All catalog data (records, authority, bibliography, sites, map, indices) lives
- * in the PRIVATE repo pleuston/epiwen-data and is read through the GitHub
+ * in the PRIVATE repo epiwen/epiwen-data and is read through the GitHub
  * Contents API with the signed-in user's token. Anonymous reads do not work —
  * a user must be signed in (auth.js) with a token that can read epiwen-data.
  *
@@ -17,7 +17,7 @@
   "use strict";
   // Falls back to epiwen-data so that regular users (who set epiwen_gh_repo in
   // login.html) get the expected backend; workshop users get epiwen-workshop.
-  var OWNER  = localStorage.getItem("epiwen_gh_owner")  || "pleuston";
+  var OWNER  = localStorage.getItem("epiwen_gh_owner")  || "epiwen";
   var REPO   = localStorage.getItem("epiwen_gh_repo")   || "epiwen-data";
   var BRANCH = localStorage.getItem("epiwen_gh_branch") || "main";
 

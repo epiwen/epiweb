@@ -8,8 +8,8 @@
     token: "epiwen_gh_token", owner: "epiwen_gh_owner",
     repo: "epiwen_gh_repo",  branch: "epiwen_gh_branch"
   };
-  var DEF     = { owner: "pleuston", repo: "epiwen-data", branch: "main" };
-  var DEF_APP = { owner: "pleuston", repo: "epiwen",      branch: "main" };
+  var DEF     = { owner: "epiwen", repo: "epiwen-data", branch: "main" };
+  var DEF_APP = { owner: "epiwen", repo: "epiweb",      branch: "main" };
 
   function cfg() {
     return {

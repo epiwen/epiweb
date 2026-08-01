@@ -3,7 +3,7 @@
 (function () {
   "use strict";
 
-  var OWNER  = "pleuston";
+  var OWNER  = "epiwen";
   var REPO   = "epiwen-data";   // records live in the private data backend
   var BRANCH = "main";
 
@@ -1694,7 +1694,7 @@
     list.innerHTML =
       '<div class="catalog-empty backend-error">' +
         '<strong>Can’t read the data backend.</strong> The catalog lives in the private repo ' +
-        '<code>pleuston/epiwen-data</code>, and the token you’re signed in with can’t read it ' +
+        '<code>epiwen/epiwen-data</code>, and the token you’re signed in with can’t read it ' +
         '(GitHub returns a 404). Generate a token that has access:' +
         '<ul>' +
           '<li><a href="' + TOKEN_CLASSIC + '" target="_blank" rel="noopener">classic PAT with the <code>repo</code> scope</a> — one click, scope pre-filled; or</li>' +
@@ -1721,7 +1721,7 @@
       box.innerHTML =
         '<div class="catalog-notice-bar">' +
           'Showing the public corpus only — your token can’t read the private ' +
-          '<code>pleuston/epiwen-data</code> backend (GitHub returns a 404). ' +
+          '<code>epiwen/epiwen-data</code> backend (GitHub returns a 404). ' +
           '<a href="' + TOKEN_FINE + '" target="_blank" rel="noopener">Use a token with access</a> ' +
           'to see private collections.' +
         '</div>';
