@@ -484,9 +484,17 @@
   }
 
   // ---- preload / example ---------------------------------------------------------
+  // A brand-new object ("+ New") is an EpiDoc-CN record → default its save target
+  // to the public corpus. Editing overrides this via the preload's _writeTarget.
+  function defaultNewRecordTarget() {
+    if (window.EpiCollections && EpiCollections.corpusWriteTarget &&
+        window.EpiGitHub && EpiGitHub.setTarget)
+      EpiGitHub.setTarget(EpiCollections.corpusWriteTarget());
+  }
+
   function preload() {
     var raw = sessionStorage.getItem("epiwen_preload_object");
-    if (!raw) return;
+    if (!raw) { defaultNewRecordTarget(); return; }
     sessionStorage.removeItem("epiwen_preload_object");
     try {
       var o = JSON.parse(raw);

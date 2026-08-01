@@ -56,6 +56,14 @@
     for (var i = 0; i < SHARED_PKGS.length; i++) if (SHARED_PKGS[i].id === id) return SHARED_PKGS[i];
     return null;
   }
+  // Write target for a NEW EpiDoc-CN corpus record — the public shared corpus
+  // (epiwen-public/collections/epidoc-cn/). The tier editors default here so a
+  // brand-new site/object/inscription lands in the corpus, not the private
+  // backend. (Editing an existing record still routes by its own _writeTarget.)
+  function corpusWriteTarget() {
+    return { owner: SHARED_CN.owner, repo: SHARED_CN.repo, branch: SHARED_CN.branch,
+             path: "collections/" + SHARED_CN.id + "/" };
+  }
 
   var _changeHandlers = [];
 
@@ -1248,6 +1256,7 @@
     SHARED:            SHARED,
     SHARED_PKGS:       SHARED_PKGS,
     sharedPkg:         sharedPkg,
+    corpusWriteTarget: corpusWriteTarget,
     loadIndex:       loadIndex,
     fetchRecordXml:  fetchRecordXml,
     mountBar:        mountBar,

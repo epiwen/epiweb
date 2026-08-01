@@ -507,9 +507,15 @@
     save.addEventListener("click", function () {
       if (window.EpiGitHub) EpiGitHub.save(teiXml(), teiFile || ((tei.place.id || "site") + "_site.xml"));
     });
-    var wrap = el("div", null); wrap.style.cssText = "display:flex;gap:.6rem;margin:1rem 0";
+    var wrap = el("div", null); wrap.style.cssText = "display:flex;gap:.6rem;align-items:center;margin:1rem 0";
     wrap.appendChild(save);
+    // Destination chip (matches editor.html / object-editor.html) — shows where a
+    // new EpiDoc-CN site will be saved. #save-target is filled by github.js.
+    var dest = el("span", "step save-target-wrap", 'Saving to <code id="save-target">…</code>');
+    dest.style.marginLeft = "auto";
+    wrap.appendChild(dest);
     root.appendChild(wrap);
+    if (window.EpiGitHub && EpiGitHub.refreshTargetUI) EpiGitHub.refreshTargetUI();
   }
   function teiXml() { return CN.buildSite(tei); }
   function teiUpdate() {
@@ -532,6 +538,14 @@
     teiRender(); teiUpdate();
   }
 
+  // A brand-new TEI site is an EpiDoc-CN corpus record → default its save target
+  // to the public corpus (not the private backend / the legacy catalog/ path).
+  function corpusTarget() {
+    if (window.EpiCollections && EpiCollections.corpusWriteTarget &&
+        window.EpiGitHub && EpiGitHub.setTarget)
+      EpiGitHub.setTarget(EpiCollections.corpusWriteTarget());
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     var raw = sessionStorage.getItem("epiwen_preload_site_tei");
     if (raw) {
@@ -544,7 +558,11 @@
         return;
       } catch (e) { console.warn("epiwen_preload_site_tei parse error", e); }
     }
+    function newTei() { corpusTarget(); enterTei(null, ""); }
+    // "+ New" from the Sites browser (site-editor.html?new=tei) opens straight
+    // into a new EpiDoc-CN site targeting the public corpus.
+    if (/[?&]new=tei(?:&|$)/.test(window.location.search)) { newTei(); return; }
     var btn = document.getElementById("btn-mode-tei");
-    if (btn) btn.addEventListener("click", function () { enterTei(null, ""); });
+    if (btn) btn.addEventListener("click", newTei);
   });
 })();
