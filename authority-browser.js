@@ -9,6 +9,18 @@
   var _deepId = (new URLSearchParams(window.location.search)).get("id");   // deep-link to one authority
   var currentQuery  = "";
   var selectedRec   = null;
+  var authView = localStorage.getItem("epiwen_auth_view") || "cards";  // "cards" | "table"
+  var yearFrom = null, yearTo = null;   // active time filter (person lifespans)
+
+  // Pull year(s) out of a free-text lifespan ("705–774", "1871 - 1942", "1954-").
+  function yearsOf(dateStr) {
+    if (!dateStr) return null;
+    var m = String(dateStr).match(/\d{3,4}/g);
+    if (!m) return null;
+    var ys = m.map(Number);
+    return { from: Math.min.apply(null, ys), to: Math.max.apply(null, ys) };
+  }
+  function birthYear(dateStr) { var y = yearsOf(dateStr); return y ? y.from : null; }
 
   function esc(s) {
     return String(s || "")
@@ -79,6 +91,13 @@
         var hay = fold((r.display_name || "") + " " + (r.name_zh || "") + " " + (r.name_pinyin || ""));
         if (hay.indexOf(q) === -1) return false;
       }
+      if (yearFrom != null || yearTo != null) {
+        var y = yearsOf(r.date);
+        if (!y) return false;                                   // undated → out when filtering by time
+        var lo = yearFrom != null ? yearFrom : -Infinity;
+        var hi = yearTo   != null ? yearTo   :  Infinity;
+        if (y.to < lo || y.from > hi) return false;             // lifespan doesn't overlap the range
+      }
       return true;
     });
   }
@@ -94,10 +113,14 @@
       return;
     }
 
-    var frag = document.createDocumentFragment();
-    recs.forEach(function (rec) { frag.appendChild(buildListItem(rec)); });
-    list.innerHTML = "";
-    list.appendChild(frag);
+    if (authView === "table" && document.getElementById("auth-view-mode")) {
+      renderAuthTable(recs, list);
+    } else {
+      var frag = document.createDocumentFragment();
+      recs.forEach(function (rec) { frag.appendChild(buildListItem(rec)); });
+      list.innerHTML = "";
+      list.appendChild(frag);
+    }
 
     // Deep-link: ?id=<authority> opens that record (e.g. from a rubbing collection).
     // Only consume _deepId once the record is actually present — it may arrive in a
@@ -113,6 +136,40 @@
         if (div) div.scrollIntoView({ block: "nearest" });
       }
     }
+  }
+
+  function authBadges(rec) {
+    var b = [];
+    ["wikidata", "viaf", "gnd", "dila_authority", "cbdb"].forEach(function (k) {
+      if (rec[k]) b.push('<a href="' + esc(EXT_LINKS[k](rec[k])) + '" target="_blank" rel="noopener" ' +
+        'onclick="event.stopPropagation()">' + esc(ID_LABELS[k]) + "</a>");
+    });
+    return b.join(" · ");
+  }
+
+  // Sortable table view (persons/places). Name · Dates (sorted by birth year) ·
+  // authority links. Row click opens the same detail pane as a card.
+  function renderAuthTable(recs, list) {
+    list.innerHTML = '<div class="tbl-wrap"><div id="auth-tbl"></div></div>';
+    EpiTable.render(document.getElementById("auth-tbl"), {
+      columns: [
+        { key: "name", label: "Name", cls: "col-zh", render: function (r) {
+            var main = esc(r.display_name || r.name_zh || r.id);
+            var sub = [];
+            if (r.name_pinyin && r.name_pinyin !== r.display_name) sub.push(r.name_pinyin);
+            if (r.name_zh && r.name_zh !== r.display_name) sub.push(r.name_zh);
+            return (r.source === "private" ? "🔒 " : "") + main +
+              (sub.length ? ' <span class="tree-label-zh">' + esc(sub.join(" · ")) + "</span>" : "");
+          } },
+        { key: "born", label: "Dates", type: "num",
+          get: function (r) { return birthYear(r.date); },
+          render: function (r) { return esc(r.date || ""); } },
+        { key: "auth", label: "Authorities", sortable: false, render: authBadges }
+      ],
+      rows: recs, sort: { key: "name", dir: 1 },
+      rowKey: function (r) { return r.id; },
+      onRowClick: function (r) { selectRecord(r, null); }
+    });
   }
 
   function buildListItem(rec) {
@@ -305,6 +362,47 @@
     document.getElementById("auth-search").addEventListener("input", function () {
       currentQuery = this.value.trim();
       renderList();
+    });
+
+    // Cards ⇄ Table toggle (persons/places), persisted.
+    var vm = document.getElementById("auth-view-mode");
+    if (vm) {
+      function paintVm() {
+        Array.prototype.forEach.call(vm.querySelectorAll("button"), function (b) {
+          b.classList.toggle("active", b.dataset.mode === authView);
+        });
+      }
+      paintVm();
+      vm.addEventListener("click", function (e) {
+        var b = e.target.closest("button[data-mode]");
+        if (!b || b.dataset.mode === authView) return;
+        authView = b.dataset.mode;
+        localStorage.setItem("epiwen_auth_view", authView);
+        paintVm();
+        renderList();
+      });
+    }
+
+    // Time filter — year range + dynasty presets (applies to both views).
+    var yf = document.getElementById("year-from"), yt = document.getElementById("year-to");
+    function readYears() {
+      yearFrom = yf && yf.value !== "" ? parseInt(yf.value, 10) : null;
+      yearTo   = yt && yt.value !== "" ? parseInt(yt.value, 10) : null;
+      renderList();
+    }
+    if (yf) yf.addEventListener("input", readYears);
+    if (yt) yt.addEventListener("input", readYears);
+    Array.prototype.forEach.call(document.querySelectorAll(".auth-presets button"), function (b) {
+      b.addEventListener("click", function () {
+        if (yf) yf.value = b.dataset.from || "";
+        if (yt) yt.value = b.dataset.to || "";
+        readYears();
+      });
+    });
+    var yc = document.getElementById("year-clear");
+    if (yc) yc.addEventListener("click", function () {
+      if (yf) yf.value = ""; if (yt) yt.value = "";
+      yearFrom = yearTo = null; renderList();
     });
 
     document.querySelectorAll(".auth-tab-btn").forEach(function (btn) {

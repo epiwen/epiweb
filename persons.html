@@ -82,6 +82,27 @@
                      placeholder="Filter…" aria-label="filter authorities" />
             </div>
           </div>
+          <div class="auth-controls">
+            <span class="view-mode-toggle" id="auth-view-mode" role="group" aria-label="view mode">
+              <button type="button" data-mode="cards" class="active">Cards</button>
+              <button type="button" data-mode="table">Table</button>
+            </span>
+            <span class="auth-timebar">
+              Time
+              <input type="number" id="year-from" class="year-inp" placeholder="from" aria-label="year from" />–<input type="number" id="year-to" class="year-inp" placeholder="to" aria-label="year to" />
+              <span class="auth-presets">
+                <button type="button" data-from="386" data-to="534">北魏</button>
+                <button type="button" data-from="550" data-to="577">北齊</button>
+                <button type="button" data-from="581" data-to="618">隋</button>
+                <button type="button" data-from="618" data-to="907">唐</button>
+                <button type="button" data-from="960" data-to="1279">宋</button>
+                <button type="button" data-from="1368" data-to="1644">明</button>
+                <button type="button" data-from="1644" data-to="1911">清</button>
+                <button type="button" data-from="1912" data-to="2025">近現代</button>
+              </span>
+              <button type="button" id="year-clear" class="btn small">clear</button>
+            </span>
+          </div>
           <div id="auth-list" class="catalog-list"></div>
         </section>
       </div>
@@ -201,7 +222,8 @@
     <script>window.__EPI_AUTH_FILTER = "personal";</script>
     <script src="collections.js"></script>
     <script src="variants.js"></script>
-    <script src="authority-browser.js"></script>
+    <script src="table-view.js?v=1"></script>
+    <script src="authority-browser.js?v=2"></script>
     <script src="modal.js"></script>
     <script src="nav.js"></script>
   </body>

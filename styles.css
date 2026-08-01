@@ -887,3 +887,20 @@ textarea.mono { font-family: "SF Mono", Menlo, monospace; }
 }
 .view-mode-toggle button.active { background: var(--accent, #7a1f2b); color: #fff; }
 .tbl-wrap { overflow-x: auto; }
+
+/* ── Authority browser: view toggle + time filter (persons/places) ───────────── */
+.auth-controls {
+  display: flex; align-items: center; gap: .8rem; flex-wrap: wrap;
+  margin: 0 0 .6rem; font-size: .8rem; color: var(--muted, #6b7280);
+}
+.auth-timebar { display: inline-flex; align-items: center; gap: .35rem; flex-wrap: wrap; }
+.year-inp {
+  width: 4.2rem; padding: .12rem .3rem; font-size: .8rem;
+  border: 1px solid var(--line, #ddd); border-radius: 4px; background: var(--field-bg, #fafafa);
+}
+.auth-presets { display: inline-flex; gap: .2rem; flex-wrap: wrap; margin-left: .2rem; }
+.auth-presets button {
+  border: 1px solid var(--line, #ddd); background: var(--bg, #fff); color: var(--ink, #333);
+  border-radius: 10px; padding: .04rem .5rem; font-size: .74rem; cursor: pointer;
+}
+.auth-presets button:hover { background: var(--field-bg, #f2f2f2); border-color: var(--accent, #7a1f2b); }
