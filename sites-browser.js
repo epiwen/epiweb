@@ -17,7 +17,8 @@
   var byId = {};
   var byParent = {};        // parentId -> [records]
   var selectedId = null;
-  var viewMode = "html";    // "html" | "xml"
+  var viewMode = "html";    // "html" | "xml" (detail pane)
+  var siteView = localStorage.getItem("epiwen_site_view") || "tree";  // "tree" | "table"
   var cache = {};           // id -> { siteXml, proseXml }
 
   // ── utils ──────────────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@
           'or check your token can read the backend.</div>';
       } else {
         var s = el("site-search");
-        renderTree(s ? s.value : "");
+        renderView(s ? s.value : "");
       }
       if (initial) {
         var want = new URLSearchParams(location.search).get("site");   // deep-link from the map
@@ -100,6 +101,51 @@
       }
     }).catch(function (e) {
       tree.innerHTML = '<div class="catalog-loading">Error: ' + esc(e.message) + "</div>";
+    });
+  }
+
+  // ── tree / table dispatch ───────────────────────────────────────────────────
+
+  function fold(s) {
+    return window.EpiVariants ? EpiVariants.fold(s) : String(s == null ? "" : s).toLowerCase();
+  }
+  function renderView(query) {
+    if (siteView === "table") renderSiteTable(query);
+    else renderTree(query);
+  }
+
+  // Flat sortable table of every site-index record (sites, sections, objects,
+  // inscriptions). Row click routes exactly like the tree (gotoRecord): sites →
+  // in-page detail, objects/inscriptions → their catalog record.
+  function renderSiteTable(query) {
+    var tree = el("site-tree");
+    var q = fold((query || "").trim());
+    var rows = allRecords.filter(function (r) {
+      if (!q) return true;
+      return fold((r.title_en || "") + " " + (r.title_zh || "") + " " + (r.id || "") + " " +
+                  (r.province_en || "") + " " + (r.kind || "")).indexOf(q) !== -1;
+    });
+    el("site-count").textContent = "(" + rows.length + (q ? " match" : "") + ")";
+    if (!rows.length) { tree.innerHTML = '<div class="catalog-loading">No sites.</div>'; return; }
+    var columns = [
+      { key: "id", label: "ID" },
+      { key: "title_en", label: "Title",
+        render: function (r) {
+          return esc(r.title_en || r.id) +
+            (r.title_zh ? ' <span class="tree-label-zh">' + esc(r.title_zh) + "</span>" : "");
+        } },
+      { key: "kind", label: "Kind", get: function (r) { return r.kind || "site"; } },
+      { key: "province_en", label: "Province",
+        get: function (r) { return r.province_en || r.province_zh || ""; },
+        render: function (r) { return esc([r.province_en, r.province_zh].filter(Boolean).join(" · ")); } },
+      { key: "coordinates", label: "Coordinates", get: function (r) { return r.coordinates || ""; } },
+      { key: "data_source", label: "Source", render: function (r) { return dsBadge(r); } }
+    ];
+    tree.innerHTML = '<div class="tbl-wrap"><div id="site-tbl"></div></div>';
+    EpiTable.render(document.getElementById("site-tbl"), {
+      columns: columns, rows: rows, sort: { key: "id", dir: 1 },
+      rowKey: function (r) { return r.id; },
+      onRowClick: function (r) { gotoRecord(r.id); }
     });
   }
 
@@ -594,7 +640,26 @@
     var t = null;
     s.addEventListener("input", function () {
       clearTimeout(t);
-      t = setTimeout(function () { renderTree(s.value); }, 150);
+      t = setTimeout(function () { renderView(s.value); }, 150);
     });
+
+    // Tree ⇄ Table view toggle (persisted).
+    var vm = el("site-view-mode");
+    if (vm) {
+      function paintVm() {
+        Array.prototype.forEach.call(vm.querySelectorAll("button"), function (b) {
+          b.classList.toggle("active", b.dataset.mode === siteView);
+        });
+      }
+      paintVm();
+      vm.addEventListener("click", function (e) {
+        var b = e.target.closest("button[data-mode]");
+        if (!b || b.dataset.mode === siteView) return;
+        siteView = b.dataset.mode;
+        localStorage.setItem("epiwen_site_view", siteView);
+        paintVm();
+        renderView(el("site-search").value);
+      });
+    }
   });
 })();

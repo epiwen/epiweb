@@ -134,6 +134,10 @@
             <div class="catalog-head-actions">
               <input type="search" id="site-search" class="catalog-searchbox"
                      placeholder="Filter sites…" aria-label="filter sites" />
+              <span class="view-mode-toggle" id="site-view-mode" role="group" aria-label="view mode">
+                <button type="button" data-mode="tree" class="active">Tree</button>
+                <button type="button" data-mode="table">Table</button>
+              </span>
               <a href="site-editor.html?new=tei" class="btn small primary">+ New</a>
             </div>
           </div>
@@ -165,7 +169,8 @@
     <div id="toast" role="status" aria-live="polite"></div>
     <script src="variants.js"></script>
     <script src="epidoc-cn.js"></script>
-    <script src="sites-browser.js"></script>
+    <script src="table-view.js?v=1"></script>
+    <script src="sites-browser.js?v=2"></script>
     <script src="modal.js"></script>
     <script src="nav.js"></script>
   </body>
