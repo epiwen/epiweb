@@ -357,6 +357,32 @@
     p.then(cb).catch(function (err) { toast("Could not load XML: " + err.message, true); });
   }
 
+  // Where a record's file lives, by origin. A collection record (shared public
+  // corpus or an enabled private package) lives under collections/<pkg>/authority/
+  // in THAT package's repo — not in the default backend.
+  function authPkgOf(rec) {
+    if (rec._default || !rec.collection || !window.EpiCollections) return null;
+    return rec.collection;
+  }
+  function authPrefixFor(rec) {
+    if (rec._default) return EpiCollections.DEFAULT_CORPUS.id + "/authority/";
+    var pkg = authPkgOf(rec);
+    if (pkg) return "collections/" + pkg + "/authority/";
+    return "authority/";
+  }
+  function authTargetFor(rec) {
+    if (rec._default) {
+      var d = EpiCollections.DEFAULT_CORPUS;
+      return { owner: d.owner, repo: d.repo, branch: d.branch };
+    }
+    var pkg = authPkgOf(rec);
+    if (!pkg) return null;                       // backend: use the stored default
+    var sh = EpiCollections.sharedPkg && EpiCollections.sharedPkg(pkg);
+    if (sh) return { owner: sh.owner, repo: sh.repo, branch: sh.branch };
+    var c = EpiCollections.getConfig();          // private collections repo
+    return { owner: c.owner, repo: c.repo, branch: c.branch };
+  }
+
   function openInEditor(rec) {
     fetchXml(rec, function (xml) {
       sessionStorage.setItem("epiwen_preload_authority", JSON.stringify({
@@ -370,13 +396,15 @@
         gnd:            rec.gnd,
         dila_authority: rec.dila_authority,
         cbdb:           rec.cbdb,
-        // Default (public corpus) authorities live in the app repo at
-        // corpus/authority/; backend authorities at authority/. Carry the path +
-        // repo so the editor saves/deletes the record in place.
-        _authPrefix:    rec._default ? (EpiCollections.DEFAULT_CORPUS.id + "/authority/") : "authority/",
-        _writeTarget:   rec._default ? { owner: EpiCollections.DEFAULT_CORPUS.owner,
-                                         repo:  EpiCollections.DEFAULT_CORPUS.repo,
-                                         branch: EpiCollections.DEFAULT_CORPUS.branch } : null,
+        // Save/delete the record IN PLACE — three homes:
+        //   default (public corpus) → app repo,      corpus/authority/
+        //   collection (shared/private pkg) → its repo, collections/<pkg>/authority/
+        //   backend                 → epiwen-data,   authority/
+        // Without the collection branch a place or a rubbing institution edited
+        // here was written to the BACKEND at authority/<id>.xml — wrong repo and
+        // wrong path, leaving the real record untouched.
+        _authPrefix:    authPrefixFor(rec),
+        _writeTarget:   authTargetFor(rec),
         xml:            xml
       }));
       window.location.href = "authority-editor.html";
