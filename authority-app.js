@@ -13,6 +13,9 @@
     pyFamily:  "", pyGiven: "",
     enFamily:  "", enGiven: "",
     corpName:  "", corpLang: "en",
+    // geographic (place) — MADS <geographic> + typed notes the Places register reads
+    geoZh: "", geoPinyin: "", geoEn: "",
+    geoType: "site", geoProvince: "", geoCoords: "", geoAttested: "",
     wikidata:  "", viaf: "", gnd: "", dila: "", cbdb: "",
     notes:     ""
   };
@@ -33,7 +36,24 @@
     xml += ' xsi:schemaLocation="http://www.loc.gov/mads/ http://data.stonesutras.org:8080/exist/servlet/db/schema/mads.xsd"';
     xml += ' ID="' + xmlEsc(s.id) + '">\n';
 
-    if (s.nameType === "corporate") {
+    if (s.nameType === "geographic") {
+      // MADS <geographic> (not <name type="…">) — matches the register written by
+      // epiwen-data-public harvest/places/build_places.py, so records round-trip.
+      xml += '  <authority lang="zh">\n';
+      xml += '    <geographic>' + xmlEsc(s.geoZh) + '</geographic>\n';
+      xml += '  </authority>\n';
+      if (s.geoPinyin) {
+        xml += '  <variant transliteration="pinyin">\n';
+        xml += '    <geographic>' + xmlEsc(s.geoPinyin) + '</geographic>\n';
+        xml += '  </variant>\n';
+      }
+      if (s.geoEn && s.geoEn !== s.geoZh) {
+        xml += '  <variant lang="en" type="translation">\n';
+        xml += '    <geographic>' + xmlEsc(s.geoEn) + '</geographic>\n';
+        xml += '  </variant>\n';
+      }
+
+    } else if (s.nameType === "corporate") {
       xml += '  <authority xmlns:ns1="http://www.w3.org/1999/xlink" ns1:type="simple"';
       xml += ' lang="' + xmlEsc(s.corpLang || "en") + '">\n';
       xml += '    <name type="corporate">\n';
@@ -88,6 +108,15 @@
     if (s.dila)     xml += '  <identifier type="dila">'     + xmlEsc(s.dila)     + '</identifier>\n';
     if (s.cbdb)     xml += '  <identifier type="cbdb">'     + xmlEsc(s.cbdb)     + '</identifier>\n';
 
+    // Typed notes carry the place facts the Places register indexes. Emitted in
+    // the same order build_places.py writes them.
+    if (s.nameType === "geographic") {
+      if (s.geoType)     xml += '  <note type="place-type">'  + xmlEsc(s.geoType)     + '</note>\n';
+      if (s.geoProvince) xml += '  <note type="province">'    + xmlEsc(s.geoProvince) + '</note>\n';
+      if (s.geoCoords)   xml += '  <note type="coordinates">' + xmlEsc(s.geoCoords)   + '</note>\n';
+      if (s.geoAttested) xml += '  <note type="attested">'    + xmlEsc(s.geoAttested) + '</note>\n';
+    }
+
     if (s.notes) xml += '  <note>' + xmlEsc(s.notes) + '</note>\n';
 
     xml += '</mads>';
@@ -108,8 +137,12 @@
       // Authority form
       var auth = mads.getElementsByTagNameNS(NS, "authority")[0];
       if (auth) {
+        // A place authority uses <geographic>, not <name type="…">.
+        var authGeo = auth.getElementsByTagNameNS(NS, "geographic")[0];
+        if (authGeo) st.nameType = "geographic";
+        if (authGeo) st.geoZh = (authGeo.textContent || "").trim();
         var authName = auth.getElementsByTagNameNS(NS, "name")[0];
-        if (authName) {
+        if (authName && !authGeo) {
           var nameType = authName.getAttribute("type") || "personal";
           st.nameType = (nameType === "corporate") ? "corporate" : "personal";
           var authLang = auth.getAttribute("lang") || "en";
@@ -142,6 +175,14 @@
         var v = variants[vi];
         var translit = v.getAttribute("transliteration") || "";
         var vLang = v.getAttribute("lang") || "";
+        // Place variants carry <geographic>, personal/corporate carry <name>.
+        var vGeo = v.getElementsByTagNameNS(NS, "geographic")[0];
+        if (vGeo) {
+          var gt = (vGeo.textContent || "").trim();
+          if (translit) st.geoPinyin = gt;
+          else if (vLang === "en") st.geoEn = gt;
+          continue;
+        }
         var vName = v.getElementsByTagNameNS(NS, "name")[0];
         if (!vName) continue;
         var vParts = vName.getElementsByTagNameNS(NS, "namePart");
@@ -175,9 +216,18 @@
         else if (idType === "cbdb") st.cbdb = idVal;
       }
 
-      // Notes
-      var noteEl = mads.getElementsByTagNameNS(NS, "note")[0];
-      if (noteEl) st.notes = (noteEl.textContent || "").trim();
+      // Notes. Typed notes carry place facts; the free-text note is the first
+      // UNtyped one (taking note[0] blindly would swallow <note type="place-type">).
+      var notes = mads.getElementsByTagNameNS(NS, "note");
+      for (var ni = 0; ni < notes.length; ni++) {
+        var nType = notes[ni].getAttribute("type") || "";
+        var nText = (notes[ni].textContent || "").trim();
+        if (!nType) { if (!st.notes) st.notes = nText; }
+        else if (nType === "place-type")  st.geoType     = nText;
+        else if (nType === "province")    st.geoProvince = nText;
+        else if (nType === "coordinates") st.geoCoords   = nText;
+        else if (nType === "attested")    st.geoAttested = nText;
+      }
 
     } catch (e) { /* leave defaults */ }
     return st;
@@ -197,6 +247,13 @@
     state.enGiven   = v("f-en-given");
     state.corpName  = v("f-corp-name");
     state.corpLang  = v("f-corp-lang");
+    state.geoZh       = v("f-geo-zh");
+    state.geoPinyin   = v("f-geo-pinyin");
+    state.geoEn       = v("f-geo-en");
+    state.geoType     = v("f-geo-type");
+    state.geoProvince = v("f-geo-province");
+    state.geoCoords   = v("f-geo-coords");
+    state.geoAttested = v("f-geo-attested");
     state.wikidata  = v("f-wikidata");
     state.viaf      = v("f-viaf");
     state.gnd       = v("f-gnd");
@@ -217,6 +274,13 @@
     set("f-en-given",  st.enGiven);
     set("f-corp-name", st.corpName);
     set("f-corp-lang", st.corpLang);
+    set("f-geo-zh",       st.geoZh);
+    set("f-geo-pinyin",   st.geoPinyin);
+    set("f-geo-en",       st.geoEn);
+    set("f-geo-type",     st.geoType);
+    set("f-geo-province", st.geoProvince);
+    set("f-geo-coords",   st.geoCoords);
+    set("f-geo-attested", st.geoAttested);
     set("f-wikidata",  st.wikidata);
     set("f-viaf",      st.viaf);
     set("f-gnd",       st.gnd);
@@ -238,9 +302,11 @@
   function toggleNameType(type) {
     var pSec = document.getElementById("section-personal");
     var cSec = document.getElementById("section-corporate");
+    var gSec = document.getElementById("section-geographic");
     if (!pSec || !cSec) return;
-    pSec.style.display = (type === "personal")  ? "" : "none";
-    cSec.style.display = (type === "corporate") ? "" : "none";
+    pSec.style.display = (type === "personal")   ? "" : "none";
+    cSec.style.display = (type === "corporate")  ? "" : "none";
+    if (gSec) gSec.style.display = (type === "geographic") ? "" : "none";
   }
 
   function update() {

@@ -92,6 +92,7 @@
                 <select id="f-type" class="form-input">
                   <option value="personal">personal</option>
                   <option value="corporate">corporate</option>
+                  <option value="geographic">geographic (place)</option>
                 </select>
               </label>
             </div>
@@ -160,6 +161,60 @@
               </div>
             </div>
 
+            <!-- Geographic (place) fields — MADS <geographic>; the typed notes
+                 below are what the Places register reads (province grouping,
+                 coordinates, attestation period). -->
+            <div id="section-geographic" style="display:none">
+              <p class="catalog-date" style="margin:.2rem 0 .4rem;font-weight:600">Place name</p>
+              <div class="form-row" style="display:flex;gap:.6rem;margin-bottom:.6rem">
+                <label class="form-label" style="flex:2">
+                  Name 中文
+                  <input type="text" id="f-geo-zh" class="form-input" placeholder="兗州" />
+                </label>
+                <label class="form-label" style="flex:2">
+                  Pinyin
+                  <input type="text" id="f-geo-pinyin" class="form-input" placeholder="Yanzhou" />
+                </label>
+                <label class="form-label" style="flex:3">
+                  Name (EN)
+                  <input type="text" id="f-geo-en" class="form-input" placeholder="Yanzhou Prefecture" />
+                </label>
+              </div>
+              <div class="form-row" style="display:flex;gap:.6rem;margin-bottom:.6rem">
+                <label class="form-label" style="flex:1">
+                  Place type
+                  <select id="f-geo-type" class="form-input">
+                    <option value="site">site</option>
+                    <option value="historical">historical</option>
+                    <option value="province">province</option>
+                    <option value="county">county</option>
+                    <option value="">(none)</option>
+                  </select>
+                </label>
+                <label class="form-label" style="flex:1">
+                  Province
+                  <input type="text" id="f-geo-province" class="form-input" list="province-list" placeholder="山東省" />
+                  <datalist id="province-list">
+                    <option value="山東省"></option>
+                    <option value="河南省"></option>
+                    <option value="四川省"></option>
+                  </datalist>
+                </label>
+                <label class="form-label" style="flex:1">
+                  Coordinates
+                  <input type="text" id="f-geo-coords" class="form-input" placeholder="116.6635,35.7704" />
+                </label>
+                <label class="form-label" style="flex:1">
+                  Attested
+                  <input type="text" id="f-geo-attested" class="form-input" placeholder="558–661" />
+                </label>
+              </div>
+              <p class="catalog-date" style="margin:0 0 .6rem">
+                Leave Province or Coordinates empty when they are not securely attested —
+                add a <code>{verify: …}</code> note instead of guessing.
+              </p>
+            </div>
+
             <!-- External identifiers -->
             <p class="catalog-date" style="margin:.6rem 0 .4rem;font-weight:600">External identifiers</p>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.8rem">
@@ -218,7 +273,7 @@
     <div id="toast" role="status" aria-live="polite"></div>
     <script src="github.js"></script>
     <script src="authority-lookup.js"></script>
-    <script src="authority-app.js"></script>
+    <script src="authority-app.js?v=2"></script>
     <script src="modal.js"></script>
     <script src="nav.js"></script>
   </body>
