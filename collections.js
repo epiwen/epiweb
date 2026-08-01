@@ -718,6 +718,137 @@
     });
   }
 
+  // ── Authority index (places) ────────────────────────────────────────────────
+  // Saving a place updates its XML; the Places page reads authority-index.json.
+  // The CI in epiwen-data-public rebuilds that index on push, but a round-trip
+  // takes ~30s — this patches it immediately so the table updates on save.
+  //
+  // Derivation, sort and JSON formatting MIRROR harvest/places/build_index.py.
+  // If they drifted, every app save would be "corrected" by CI and vice versa.
+  //
+  // Only collections whose index is FULLY derivable from their XML may be
+  // rebuilt this way — same allowlist as the script's DERIVABLE. Rebuilding
+  // `rubbings` would delete 22 curated fields (name_pinyin, wikidata) its MADS
+  // records don't carry.
+  var AUTH_DERIVABLE = ["epidoc-cn"];
+  var AUTH_PROV_EN = { "山東省": "Shandong Province", "河南省": "Henan Province",
+                       "四川省": "Sichuan Province" };
+  var AUTH_SITE_IDS = ["SNS", "CLS", "HDS", "WFY", "LQS", "XNH"];
+  var MADS_NS = "http://www.loc.gov/mads/";
+
+  function authorityEntryFromXml(filename, xml) {
+    var id = filename.replace(/\.xml$/i, "");
+    var e = { id: id, display_name: "", name_zh: "", name_pinyin: "", name_type: "personal",
+              place_type: "", province: "", province_en: "", coordinates: "", date: "",
+              wikidata: "", viaf: "", gnd: "", dila_authority: "", cbdb: "" };
+    var doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.getElementsByTagName("parsererror").length) return e;
+    var root = doc.documentElement;
+    e.id = root.getAttribute("ID") || id;
+    function kids(el, tag) { return el ? Array.prototype.slice.call(el.getElementsByTagNameNS(MADS_NS, tag)) : []; }
+    function txt(el) { return el ? (el.textContent || "").trim() : ""; }
+    var en = "";
+
+    var auth = kids(root, "authority")[0];
+    if (auth) {
+      var geo = kids(auth, "geographic")[0];
+      if (geo) { e.name_type = "geographic"; e.name_zh = txt(geo); }
+      else {
+        var nm = kids(auth, "name")[0];
+        if (nm) {
+          e.name_type = nm.getAttribute("type") || "personal";
+          e.name_zh = kids(nm, "namePart").map(txt).filter(Boolean).join(" ");
+        }
+      }
+    }
+    kids(root, "variant").forEach(function (v) {
+      var val = txt(kids(v, "geographic")[0]);
+      if (!val) {
+        var vn = kids(v, "name")[0];
+        if (vn) val = kids(vn, "namePart").map(txt).filter(Boolean).join(" ");
+      }
+      if (!val) return;
+      if (v.getAttribute("transliteration")) { if (!e.name_pinyin) e.name_pinyin = val; }
+      else if (v.getAttribute("lang") === "en") { if (!en) en = val; }
+    });
+    kids(root, "note").forEach(function (n) {
+      var t = n.getAttribute("type") || "", val = txt(n);
+      if (t === "place-type") e.place_type = val;
+      else if (t === "province") e.province = val;
+      else if (t === "coordinates") e.coordinates = val;
+      else if (t === "attested") e.date = val;
+    });
+    kids(root, "identifier").forEach(function (idn) {
+      var t = idn.getAttribute("type") || "", val = txt(idn);
+      if (t === "dila") e.dila_authority = val;
+      else if (t === "wikidata" || t === "viaf" || t === "gnd" || t === "cbdb") e[t] = val;
+    });
+
+    e.display_name = en ? (en + " " + e.name_zh).trim() : e.name_zh;
+    e.province_en = AUTH_PROV_EN[e.province] || "";
+    if (AUTH_SITE_IDS.indexOf(e.id) !== -1) e.site_id = e.id;
+    return e;
+  }
+
+  function _authSort(a, b) {                      // mirrors the script's sort key
+    var ka = [a.province || "￿", a.place_type || "", a.id || ""];
+    var kb = [b.province || "￿", b.place_type || "", b.id || ""];
+    for (var i = 0; i < 3; i++) { if (ka[i] < kb[i]) return -1; if (ka[i] > kb[i]) return 1; }
+    return 0;
+  }
+
+  // Read → modify → write collections/<pkg>/authority-index.json in the package's
+  // own repo (shared corpora live in epiwen-data-public, not the private backend).
+  function _patchAuthorityIndex(pkg, mutate, message) {
+    if (AUTH_DERIVABLE.indexOf(pkg) === -1) return Promise.resolve(null);
+    var t = token();
+    if (!t) return Promise.resolve(null);         // guests can't write; CI still covers it
+    var sh = sharedPkg(pkg), c = sh || getConfig();
+    var rel = "collections/" + pkg + "/authority-index.json";
+    var url = "https://api.github.com/repos/" + c.owner + "/" + c.repo + "/contents/" + rel;
+    var h = { "Authorization": "Bearer " + t, "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28" };
+    return fetch(url + "?ref=" + encodeURIComponent(c.branch) + "&_t=" + (new Date().getTime()),
+                 { headers: h, cache: "no-store" })
+      .then(function (r) {
+        if (r.status === 404) return { list: [], sha: null };
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json().then(function (j) {
+          var list; try { list = JSON.parse(_unb64utf8(j.content)); } catch (e2) { list = []; }
+          return { list: Array.isArray(list) ? list : [], sha: j.sha };
+        });
+      })
+      .then(function (st) {
+        var next = mutate(st.list);
+        next.sort(_authSort);
+        var body = { message: message, content: _b64utf8(JSON.stringify(next, null, 1) + "\n"),
+                     branch: c.branch };
+        if (st.sha) body.sha = st.sha;
+        return fetch(url, { method: "PUT",
+                            headers: Object.assign({ "Content-Type": "application/json" }, h),
+                            body: JSON.stringify(body) })
+          .then(function (r) {
+            if (!r.ok) return r.json().then(function (er) { throw new Error(er.message || "HTTP " + r.status); });
+            return r.json();
+          });
+      });
+  }
+
+  function authorityIndexUpsert(pkg, filename, xml) {
+    var entry = authorityEntryFromXml(filename, xml);
+    return _patchAuthorityIndex(pkg, function (list) {
+      var out = list.filter(function (e) { return e.id !== entry.id; });
+      out.push(entry);
+      return out;
+    }, "Authority index: update " + entry.id);
+  }
+  function authorityIndexRemove(pkg, filename) {
+    var id = filename.replace(/\.xml$/i, "");
+    return _patchAuthorityIndex(pkg, function (list) {
+      return list.filter(function (e) { return e.id !== id; });
+    }, "Authority index: remove " + id);
+  }
+
   /* A package's records-index.json merged with its records-index.patch.json —
      lightweight list metadata for every record in ONE (well, two small) request.
      This is how large collections (thousands of records) are browsed: the
@@ -1241,6 +1372,9 @@
     indexEntryFromXml:  indexEntryFromXml,
     recordsIndexUpsert: recordsIndexUpsert,
     recordsIndexRemove: recordsIndexRemove,
+    authorityEntryFromXml: authorityEntryFromXml,
+    authorityIndexUpsert:  authorityIndexUpsert,
+    authorityIndexRemove:  authorityIndexRemove,
     loadEnabled:     loadEnabled,
     loadDefaultCorpus: loadDefaultCorpus,
     loadDefaultAuthorityIndex: loadDefaultAuthorityIndex,

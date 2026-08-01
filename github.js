@@ -227,19 +227,36 @@
 
   // For a collections/<pkg>/<file> path, return { pkg, file }; else null. Used to
   // keep that package's records-index current after a save/delete.
+  // collections/<pkg>/<file>.xml            → a record   (records-index)
+  // collections/<pkg>/authority/<file>.xml  → an authority (authority-index)
+  // Without the `auth` flag a place saved here patched the RECORDS index, which
+  // would have listed it as a catalogue record.
   function collectionOf(relPath) {
     var m = String(relPath).match(/^collections\/([^/]+)\/(.+)$/);
-    return m ? { pkg: m[1], file: m[2].split("/").pop() } : null;
+    if (!m) return null;
+    return { pkg: m[1], file: m[2].split("/").pop(), auth: /(^|\/)authority\//.test(m[2]) };
   }
   function syncIndexOnSave(relPath, xml) {
     var c = collectionOf(relPath);
-    if (!c || !window.EpiCollections || !EpiCollections.recordsIndexUpsert) return Promise.resolve();
+    if (!c || !window.EpiCollections) return Promise.resolve();
+    if (c.auth) {
+      if (!EpiCollections.authorityIndexUpsert) return Promise.resolve();
+      return EpiCollections.authorityIndexUpsert(c.pkg, c.file, xml)
+        .catch(function (e) { toast("Saved — but index update failed: " + e.message, true); });
+    }
+    if (!EpiCollections.recordsIndexUpsert) return Promise.resolve();
     return EpiCollections.recordsIndexUpsert(c.pkg, c.file, xml)
       .catch(function (e) { toast("Saved — but index update failed: " + e.message, true); });
   }
   function syncIndexOnDelete(relPath) {
     var c = collectionOf(relPath);
-    if (!c || !window.EpiCollections || !EpiCollections.recordsIndexRemove) return Promise.resolve();
+    if (!c || !window.EpiCollections) return Promise.resolve();
+    if (c.auth) {
+      if (!EpiCollections.authorityIndexRemove) return Promise.resolve();
+      return EpiCollections.authorityIndexRemove(c.pkg, c.file)
+        .catch(function (e) { toast("Deleted — but index update failed: " + e.message, true); });
+    }
+    if (!EpiCollections.recordsIndexRemove) return Promise.resolve();
     return EpiCollections.recordsIndexRemove(c.pkg, c.file)
       .catch(function (e) { toast("Deleted — but index update failed: " + e.message, true); });
   }
