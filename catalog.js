@@ -19,6 +19,7 @@
   var rubSourceFilter = "all"; // Rubbings tab: filter by holding collection / source
   var siteFilter   = "all";    // Objects/Inscriptions: filter by site (origPlace / repository)
   var rubViewMode  = "flat";   // Rubbings tab: "flat" (every rubbing) | "compact" (by inscription)
+  var catView      = localStorage.getItem("epiwen_cat_view") || "cards";  // "cards" | "table"
   var currentUsername = (window.EpiAuth ? EpiAuth.getUser().username : "") ||
                         localStorage.getItem("epiwen_gh_username") || "";
 
@@ -533,6 +534,71 @@
     if (!info) return "";
     return '<span class="catalog-badge-datasource" title="' + esc(info.title) + '">' +
       esc(rec.dataSource) + '</span>';
+  }
+
+  // ---- Table view (EpiTable) ----------------------------------------------
+  // Renders the current tab's filtered records as a sortable table into
+  // #catalog-list (below the site-filter bar). Row click opens the same
+  // preview as the card; a matching `file` deep-link auto-opens + scrolls.
+  function mountCatTable(bar, columns, rows, rowKey, onRowClick, file) {
+    var list = document.getElementById("catalog-list");
+    list.innerHTML = bar + '<div class="tbl-wrap"><div id="cat-tbl"></div></div>';
+    EpiTable.render(document.getElementById("cat-tbl"), {
+      columns: columns, rows: rows, rowKey: rowKey, onRowClick: onRowClick
+    });
+    wireSiteFilter();
+    if (file) {
+      var tr = document.querySelector('#cat-tbl tr[data-rk^="' + cssRk(file) + '"]');
+      if (tr) setTimeout(function () {
+        tr.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        tr.click();
+      }, 0);
+    }
+  }
+  function cssRk(s) { return String(s).replace(/(["\\\]])/g, "\\$1"); }
+
+  function objectColumns() {
+    return [
+      { key: "name", label: "File",
+        render: function (r) { return '<code class="catalog-filename">' + esc(r.name) + "</code>"; } },
+      { key: "titleZh", label: "題 Title", cls: "col-zh", get: function (r) { return r.titleZh; } },
+      { key: "titleEn", label: "Title (EN)", get: function (r) { return r.titleEn; } },
+      { key: "when", label: "Date", type: "num",
+        get: function (r) { return r.when || ""; },
+        render: function (r) { return esc(r.dateText || r.when || ""); } },
+      { key: "region", label: "Region", cls: "col-zh", get: function (r) { return r.region; } },
+      { key: "dataSource", label: "Source",
+        render: function (r) { return dataSourceBadge(r); } }
+    ];
+  }
+  function inscriptionColumns() {
+    return [
+      { key: "head", label: "Siglum",
+        get: function (it) { return it.part.head || it.part.subtype || ("Text " + it.part.n); } },
+      { key: "sutra", label: "文 Text", cls: "col-zh", get: function (it) { return it.part.sutra || it.part.sutraEn; } },
+      { key: "lang", label: "Lang", get: function (it) { return it.part.lang; } },
+      { key: "bearer", label: "On object",
+        get: function (it) { return it.rec.bearer || it.rec.name; },
+        render: function (it) { return '<code class="catalog-filename">' + esc(it.rec.bearer || it.rec.name) + "</code>"; } },
+      { key: "when", label: "Date", type: "num",
+        get: function (it) { return it.rec.when || ""; },
+        render: function (it) { return esc(it.rec.dateText || it.rec.when || ""); } },
+      { key: "src", label: "Source",
+        get: function (it) { return it.rec.dataSource; },
+        render: function (it) { return dataSourceBadge(it.rec); } }
+    ];
+  }
+  function rubbingColumns() {
+    return [
+      { key: "name", label: "File",
+        render: function (r) { return '<code class="catalog-filename">' + esc(r.name) + "</code>"; } },
+      { key: "titleZh", label: "題 Title", cls: "col-zh", get: function (r) { return r.titleZh; } },
+      { key: "titleEn", label: "Title (EN)", get: function (r) { return r.titleEn; } },
+      { key: "surrogateOf", label: "Rubbing of", get: function (r) { return r.surrogateOf; } },
+      { key: "repository", label: "Held at", cls: "col-zh", get: function (r) { return r.repository; } },
+      { key: "coll", label: "Collection",
+        get: function (r) { return rubbingSourceLabel(r); } }
+    ];
   }
 
   // ---- HTML preview card ---------------------------------------------------
@@ -1833,6 +1899,12 @@
       wireSiteFilter();
       return;
     }
+    if (catView === "table") {
+      mountCatTable(bar, objectColumns(), filtered,
+        function (r) { return r.name; },
+        function (r) { showPreview(r, null); }, file);
+      return;
+    }
     list.innerHTML = bar;
     filtered.forEach(function (rec) {
       var item = buildItem(rec);
@@ -1875,6 +1947,12 @@
       list.innerHTML = bar + '<div class="catalog-empty">' +
         (siteFilter !== "all" ? 'No inscriptions at “' + esc(siteFilter) + '”.' : 'No inscriptions found.') + '</div>';
       wireSiteFilter();
+      return;
+    }
+    if (catView === "table") {
+      mountCatTable(bar, inscriptionColumns(), items,
+        function (it) { return it.rec.name + "#" + it.part.n; },
+        function (it) { showInscriptionPreview(it.rec, it.part, it.pIdx, null); }, file);
       return;
     }
     list.innerHTML = bar;
@@ -1921,6 +1999,13 @@
           ? 'No rubbing records by @' + esc(currentUsername) + ' yet. <a href="rubbing.html">Add the first →</a>'
           : 'No rubbings in this view.') +
         '</div>';
+      wireRubSource();
+      return;
+    }
+    if (catView === "table") {
+      mountCatTable(selHtml, rubbingColumns(), shown,
+        function (r) { return r.name; },
+        function (r) { showPreview(r, null); }, "");
       wireRubSource();
       return;
     }
@@ -2039,6 +2124,10 @@
     Array.prototype.forEach.call(document.querySelectorAll(".catalog-item"), function (el) {
       el.style.display = (!q || el.dataset.idx.indexOf(q) !== -1) ? "" : "none";
     });
+    // Table view: filter data rows by their folded text (group headers stay).
+    Array.prototype.forEach.call(document.querySelectorAll("#cat-tbl tbody tr.etbl-click"), function (tr) {
+      tr.style.display = (!q || foldIdx(tr.textContent).indexOf(q) !== -1) ? "" : "none";
+    });
   }
 
   // ---- private collections -------------------------------------------------
@@ -2130,6 +2219,25 @@
     document.getElementById("catalog-search").addEventListener("input", function () {
       filterCatalog(this.value);
     });
+
+    // Cards ⇄ Table view toggle (persisted). Re-renders the current tab.
+    var vmode = document.getElementById("cat-view-mode");
+    if (vmode) {
+      function paintVmode() {
+        Array.prototype.forEach.call(vmode.querySelectorAll("button"), function (b) {
+          b.classList.toggle("active", b.dataset.mode === catView);
+        });
+      }
+      paintVmode();
+      vmode.addEventListener("click", function (e) {
+        var b = e.target.closest("button[data-mode]");
+        if (!b || b.dataset.mode === catView) return;
+        catView = b.dataset.mode;
+        localStorage.setItem("epiwen_cat_view", catView);
+        paintVmode();
+        renderByTab(currentTab);
+      });
+    }
 
     // Initial tab + file from URL params
     var _sp       = new URLSearchParams(window.location.search);

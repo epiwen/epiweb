@@ -848,3 +848,42 @@ textarea.mono { font-family: "SF Mono", Menlo, monospace; }
   .modal-workflow { grid-template-columns: 1fr; }
   .sitenav-editor { display: none; }
 }
+
+/* ── EpiTable — shared sortable table view (table-view.js) ────────────────────── */
+.etbl { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.etbl thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--bg, #fff); text-align: left;
+  padding: .4rem .55rem; border-bottom: 2px solid var(--line, #e2e2e2);
+  font-weight: 700; font-size: .72rem; text-transform: uppercase; letter-spacing: .03em;
+  color: var(--muted, #6b7280); white-space: nowrap;
+}
+.etbl th.etbl-sortable { cursor: pointer; user-select: none; }
+.etbl th.etbl-sortable:hover { color: var(--ink, #1a1a1a); }
+.etbl .etbl-arrow { margin-left: .25rem; color: var(--accent, #7a1f2b); font-size: .8em; }
+.etbl td {
+  padding: .38rem .55rem; border-bottom: 1px solid var(--line, #eee);
+  vertical-align: top;
+}
+.etbl tbody tr.etbl-click { cursor: pointer; }
+.etbl tbody tr.etbl-click:hover { background: var(--field-bg, #faf9f8); }
+.etbl tr.etbl-group th {
+  background: var(--field-bg, #f4f4f5); color: var(--ink, #333);
+  font-size: .74rem; text-transform: none; letter-spacing: 0;
+  padding: .3rem .55rem; border-bottom: 1px solid var(--line, #e2e2e2); position: static;
+}
+.etbl tr.etbl-group .etbl-gn {
+  color: var(--muted, #888); font-weight: 400; margin-left: .3rem;
+  background: var(--bg, #fff); border-radius: 8px; padding: 0 .4rem; font-size: .9em;
+}
+.etbl .col-zh { font-family: inherit; }
+.etbl .col-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.etbl .badge-ds, .etbl .catalog-badge-datasource { white-space: nowrap; }
+/* view toggle (Cards/Table, Tree/Table) */
+.view-mode-toggle { display: inline-flex; gap: 0; border: 1px solid var(--line, #ddd); border-radius: 6px; overflow: hidden; }
+.view-mode-toggle button {
+  border: 0; background: var(--bg, #fff); color: var(--muted, #777);
+  font-size: .76rem; padding: .22rem .6rem; cursor: pointer;
+}
+.view-mode-toggle button.active { background: var(--accent, #7a1f2b); color: #fff; }
+.tbl-wrap { overflow-x: auto; }

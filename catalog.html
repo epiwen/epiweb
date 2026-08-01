@@ -79,6 +79,10 @@
               <a href="editor.html" id="btn-add-new" class="btn small primary">+ New</a>
               <input type="search" id="catalog-search" class="catalog-searchbox"
                      placeholder="Filter…" aria-label="filter catalog" />
+              <span class="view-mode-toggle" id="cat-view-mode" role="group" aria-label="view mode">
+                <button type="button" data-mode="cards" class="active">Cards</button>
+                <button type="button" data-mode="table">Table</button>
+              </span>
             </div>
           </div>
           <div id="mine-bar" style="display:none; align-items:center; gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem">
@@ -122,7 +126,8 @@
     <script src="collections.js"></script>
     <script src="variants.js"></script>
     <script src="epidoc-cn.js"></script>
-    <script src="catalog.js"></script>
+    <script src="table-view.js?v=1"></script>
+    <script src="catalog.js?v=2"></script>
     <script src="modal.js"></script>
     <script src="nav.js"></script>
   </body>
