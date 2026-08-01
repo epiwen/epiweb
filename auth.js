@@ -4,13 +4,18 @@
  * localStorage holds the identity across browser restarts;
  * sessionStorage holds the live session (cleared when the tab/browser closes). */
 (function () {
-  var UNGATED = ["login.html", "contribute.html"];
+  // UNGATED pages are public read-only browsing — reachable without signing in.
+  // The map + the pages it clicks into (Sites, Catalog) load the public corpus
+  // over the raw CDN / anonymous API, so a logged-out guest can explore them;
+  // every editor / write / admin page stays gated below. contribute.html + the
+  // login page round out the always-public set.
+  var UNGATED = ["login.html", "contribute.html", "map.html", "sites.html", "catalog.html"];
   var USERNAME_KEY = "epiwen_gh_username";
   var SESSION_KEY  = "epiwen_authed";
   var LOGIN        = "login.html";
 
   var page = window.location.pathname.split("/").pop() || "index.html";
-  if (UNGATED.indexOf(page) !== -1) return;
+  var gated = UNGATED.indexOf(page) === -1;
 
   function redirect() {
     window.location.replace(LOGIN + "?r=" + encodeURIComponent(window.location.href));
@@ -31,25 +36,37 @@
     localStorage.setItem("epiwen_gh_owner",  "pleuston");
     localStorage.setItem("epiwen_gh_repo",   "epiwen-data");
     localStorage.setItem("epiwen_gh_branch", "main");
-    redirect();
-    return;
+    if (gated) { redirect(); return; }
+    username = null;
   }
 
-  if (!username) { redirect(); return; }
-  if (sessionStorage.getItem(SESSION_KEY) !== username) { redirect(); return; }
+  var signedIn = !!username && sessionStorage.getItem(SESSION_KEY) === username;
 
-  // Patch the topbar Sign out button with avatar + @username after DOM loads
+  // Protected pages require a live session; ungated pages fall through so guests
+  // can browse.
+  if (gated && !signedIn) { redirect(); return; }
+
+  // Paint the topbar auth control on every page (gated + ungated): the signed-in
+  // identity + sign-out, or a "Sign in" link for a logged-out guest on the
+  // public pages.
   document.addEventListener("DOMContentLoaded", function () {
     var btn = document.querySelector('[onclick="EpiAuth.signOut()"]');
     if (!btn) return;
-    var av = localStorage.getItem("epiwen_gh_avatar") || "";
-    var name = localStorage.getItem("epiwen_gh_name") || username;
-    var img = av
-      ? '<img src="' + av + '" width="18" height="18" alt="" '
-        + 'style="border-radius:50%;vertical-align:middle;margin-right:.3rem;display:inline-block"> '
-      : "";
-    btn.innerHTML = img + "@" + username;
-    btn.title = name + " · click to sign out";
+    if (signedIn) {
+      var av = localStorage.getItem("epiwen_gh_avatar") || "";
+      var name = localStorage.getItem("epiwen_gh_name") || username;
+      var img = av
+        ? '<img src="' + av + '" width="18" height="18" alt="" '
+          + 'style="border-radius:50%;vertical-align:middle;margin-right:.3rem;display:inline-block"> '
+        : "";
+      btn.innerHTML = img + "@" + username;
+      btn.title = name + " · click to sign out";
+    } else {
+      btn.textContent = "Sign in";
+      btn.title = "Sign in with GitHub";
+      btn.removeAttribute("onclick");
+      btn.onclick = function () { window.location.href = LOGIN; };
+    }
   });
 })();
 
