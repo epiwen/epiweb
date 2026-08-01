@@ -10,7 +10,8 @@
   var currentQuery  = "";
   var selectedRec   = null;
   var authView = localStorage.getItem("epiwen_auth_view") || "cards";  // "cards" | "table"
-  var yearFrom = null, yearTo = null;   // active time filter (person lifespans)
+  var yearFrom = null, yearTo = null;   // active time filter (lifespan / attestation)
+  var groupByProvince = localStorage.getItem("epiwen_auth_group") !== "0";  // places table
 
   // Pull year(s) out of a free-text lifespan ("705–774", "1871 - 1942", "1954-").
   function yearsOf(dateStr) {
@@ -147,26 +148,54 @@
     return b.join(" · ");
   }
 
-  // Sortable table view (persons/places). Name · Dates (sorted by birth year) ·
-  // authority links. Row click opens the same detail pane as a card.
+  function nameCell(r) {
+    var disp = r.display_name || r.name_zh || r.id;
+    // Only add forms the display name doesn't already carry (display_name is
+    // often "English 中文", so a bare zh/pinyin repeat looks like noise).
+    var sub = [];
+    if (r.name_pinyin && disp.indexOf(r.name_pinyin) === -1) sub.push(r.name_pinyin);
+    if (r.name_zh && disp.indexOf(r.name_zh) === -1) sub.push(r.name_zh);
+    // 🌐 = shared public corpus (visible to everyone); 🔒 = a private collection.
+    var mark = r.shared ? "🌐 " : (r.source === "private" ? "🔒 " : "");
+    return mark + esc(disp) +
+      (sub.length ? ' <span class="tree-label-zh">' + esc(sub.join(" · ")) + "</span>" : "");
+  }
+  var UNASSIGNED = "（未指定 unassigned）";
+  function provinceLabel(r) {
+    if (!r.province) return "";
+    return [r.province, r.province_en].filter(Boolean).join(" · ");
+  }
+
+  // Sortable table view. Persons/corporate: Name · Dates · Authorities.
+  // Places (geographic): Name · Type · Province · Coordinates · Attested,
+  // grouped by province. Row click opens the same detail pane as a card.
   function renderAuthTable(recs, list) {
+    var isGeo = currentFilter === "geographic";
+    var columns = isGeo ? [
+      { key: "name", label: "Name", cls: "col-zh", render: nameCell },
+      { key: "place_type", label: "Type", get: function (r) { return r.place_type || ""; } },
+      { key: "province", label: "Province", cls: "col-zh",
+        get: function (r) { return r.province || ""; }, render: function (r) { return esc(provinceLabel(r)); } },
+      { key: "coordinates", label: "Coordinates", cls: "col-num",
+        get: function (r) { return r.coordinates || ""; } },
+      { key: "attested", label: "Attested", type: "num",
+        get: function (r) { return birthYear(r.date); },
+        render: function (r) { return esc(r.date || ""); } }
+    ] : [
+      { key: "name", label: "Name", cls: "col-zh", render: nameCell },
+      { key: "born", label: "Dates", type: "num",
+        get: function (r) { return birthYear(r.date); },
+        render: function (r) { return esc(r.date || ""); } },
+      { key: "auth", label: "Authorities", sortable: false, render: authBadges }
+    ];
     list.innerHTML = '<div class="tbl-wrap"><div id="auth-tbl"></div></div>';
     EpiTable.render(document.getElementById("auth-tbl"), {
-      columns: [
-        { key: "name", label: "Name", cls: "col-zh", render: function (r) {
-            var main = esc(r.display_name || r.name_zh || r.id);
-            var sub = [];
-            if (r.name_pinyin && r.name_pinyin !== r.display_name) sub.push(r.name_pinyin);
-            if (r.name_zh && r.name_zh !== r.display_name) sub.push(r.name_zh);
-            return (r.source === "private" ? "🔒 " : "") + main +
-              (sub.length ? ' <span class="tree-label-zh">' + esc(sub.join(" · ")) + "</span>" : "");
-          } },
-        { key: "born", label: "Dates", type: "num",
-          get: function (r) { return birthYear(r.date); },
-          render: function (r) { return esc(r.date || ""); } },
-        { key: "auth", label: "Authorities", sortable: false, render: authBadges }
-      ],
-      rows: recs, sort: { key: "name", dir: 1 },
+      columns: columns, rows: recs, sort: { key: "name", dir: 1 },
+      group: isGeo && groupByProvince
+        ? { label: "Province",
+            get: function (r) { return provinceLabel(r) || UNASSIGNED; },
+            sortKey: function (g) { return g === UNASSIGNED ? "￿" : g; } }
+        : null,
       rowKey: function (r) { return r.id; },
       onRowClick: function (r) { selectRecord(r, null); }
     });
@@ -271,8 +300,18 @@
 
     html += "<table class=\"docs-table\" style=\"margin-bottom:.8rem\">";
     html += "<tbody>";
-    html += "<tr><th>Type</th><td>" + esc(rec.name_type || "personal") + "</td></tr>";
-    if (rec.date) html += "<tr><th>Dates</th><td>" + esc(rec.date) + "</td></tr>";
+    html += "<tr><th>Type</th><td>" + esc(rec.name_type || "personal") +
+      (rec.place_type ? " · " + esc(rec.place_type) : "") + "</td></tr>";
+    if (rec.province)
+      html += "<tr><th>Province</th><td>" + esc(provinceLabel(rec)) + "</td></tr>";
+    if (rec.coordinates)
+      html += "<tr><th>Coordinates</th><td>" + esc(rec.coordinates) + "</td></tr>";
+    if (rec.date)
+      html += "<tr><th>" + (rec.name_type === "geographic" ? "Attested" : "Dates") + "</th><td>" +
+        esc(rec.date) + "</td></tr>";
+    if (rec.site_id)
+      html += '<tr><th>Site record</th><td><a href="sites.html?site=' +
+        encodeURIComponent(rec.site_id) + '">Open in Sites →</a></td></tr>';
     html += idRow("Wikidata", rec.wikidata, EXT_LINKS.wikidata);
     html += idRow("VIAF",     rec.viaf,     EXT_LINKS.viaf);
     html += idRow("GND",      rec.gnd,      EXT_LINKS.gnd);
@@ -404,6 +443,17 @@
       if (yf) yf.value = ""; if (yt) yt.value = "";
       yearFrom = yearTo = null; renderList();
     });
+
+    // Places: group the table by province (on by default).
+    var gp = document.getElementById("group-province");
+    if (gp) {
+      gp.checked = groupByProvince;
+      gp.addEventListener("change", function () {
+        groupByProvince = gp.checked;
+        localStorage.setItem("epiwen_auth_group", groupByProvince ? "1" : "0");
+        renderList();
+      });
+    }
 
     document.querySelectorAll(".auth-tab-btn").forEach(function (btn) {
       btn.addEventListener("click", function () {

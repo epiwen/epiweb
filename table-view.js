@@ -88,7 +88,10 @@
           if (!buckets[g]) { buckets[g] = []; order.push(g); }
           buckets[g].push(r);
         });
-        order.sort(function (a, b) { return cmp(a, b); });
+        // group.sortKey lets a caller park a bucket (e.g. "unassigned") last
+        // without renaming it.
+        var gkey = group.sortKey || function (g) { return g; };
+        order.sort(function (a, b) { return cmp(gkey(a), gkey(b)); });
         order.forEach(function (g) {
           h += '<tr class="etbl-group"><th colspan="' + columns.length + '">' +
                esc(g) + ' <span class="etbl-gn">' + buckets[g].length + "</span></th></tr>";

@@ -904,3 +904,5 @@ textarea.mono { font-family: "SF Mono", Menlo, monospace; }
   border-radius: 10px; padding: .04rem .5rem; font-size: .74rem; cursor: pointer;
 }
 .auth-presets button:hover { background: var(--field-bg, #f2f2f2); border-color: var(--accent, #7a1f2b); }
+.auth-groupchk { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+.auth-groupchk input { margin: 0; }
