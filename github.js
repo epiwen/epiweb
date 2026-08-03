@@ -261,6 +261,13 @@
       .catch(function (e) { toast("Deleted — but index update failed: " + e.message, true); });
   }
 
+  // Stamp the moment of a successful write. collections.js reads this and
+  // cache-busts its raw-CDN reads for the next 10 minutes, so the editor sees
+  // their own change instead of the edge's copy (max-age=300).
+  function markWrote() {
+    try { sessionStorage.setItem("epiwen_wrote_at", String(Date.now())); } catch (e) {}
+  }
+
   function toast(msg, isErr) {
     var el = document.getElementById("toast");
     if (!el) return;
@@ -318,6 +325,7 @@
       .then(function () { return syncIndexOnSave(relPath, xml); })
       .then(function () {
         toast((isNew ? "Added" : "Updated") + ": " + filename);
+        markWrote();
         try { sessionStorage.setItem("epiwen_fresh:" + filename, xml); } catch (e) {}
         setBtnState(false);
         if (onDone) onDone();
@@ -379,6 +387,7 @@
       .then(function () { return syncIndexOnDelete(relPath); })
       .then(function () {
         toast("Deleted: " + filename);
+        markWrote();
         setBtnState(false);
         if (onDone) onDone();
       })

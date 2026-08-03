@@ -178,9 +178,25 @@
   // allows only 60 req/h, which a corpus of records exhausts immediately), no
   // token needed. Only for public contexts (SHARED_PKGS / the app repo); the
   // private collections repo keeps the authenticated Contents API per CLAUDE.md.
+  // The raw CDN sends `cache-control: max-age=300`, so for FIVE MINUTES after a
+  // save the edge keeps serving the old file — an editor would not see their own
+  // change. The edge caches per URL, so a unique query beats it; plain
+  // revalidation does not, because the edge answers from its own copy.
+  //
+  // Only bust right after a write (github.js stamps epiwen_wrote_at on every
+  // successful save/delete). Normal browsing — and every guest — keeps the cache,
+  // so this costs nothing except in the window where it matters.
+  var WROTE_KEY = "epiwen_wrote_at", FRESH_MS = 10 * 60 * 1000;   // > the 300s TTL
+  function _recentlyWrote() {
+    try {
+      var t = parseInt(sessionStorage.getItem(WROTE_KEY) || "0", 10);
+      return t > 0 && (Date.now() - t) < FRESH_MS;
+    } catch (e) { return false; }
+  }
   function ctxFetchPublic(ctx, path) {
     var url = "https://raw.githubusercontent.com/" + ctx.owner + "/" + ctx.repo + "/" +
               encodeURIComponent(ctx.branch) + "/" + path;
+    if (_recentlyWrote()) url += (url.indexOf("?") === -1 ? "?" : "&") + "_t=" + Date.now();
     return fetch(url).then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.text();
