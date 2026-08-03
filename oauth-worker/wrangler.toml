@@ -1,0 +1,9 @@
+name = "epiwen-auth"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are NOT set here — they are stored
+# encrypted by Cloudflare:
+#   wrangler secret put GITHUB_CLIENT_ID
+#   wrangler secret put GITHUB_CLIENT_SECRET
+# Never put the client secret in this file; it is committed to a public repo.

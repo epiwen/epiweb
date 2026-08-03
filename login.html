@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Epiwen · Sign in</title>
-    <link rel="stylesheet" href="styles.css?v=3" />
+    <link rel="stylesheet" href="styles.css?v=4" />
     <style>
       /* ---- avatar chip (returning-user state) ---- */
       .login-avatar-row {
@@ -111,6 +111,19 @@
             Sign in →
           </button>
 
+          <!-- Shown only when oauth-config.js is filled in (see the script below). -->
+          <div id="oauth-block" style="display:none">
+            <div class="login-or"><span>or</span></div>
+            <button id="btn-oauth" type="button" class="btn btn-wide btn-oauth">
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+              Sign in with GitHub
+            </button>
+            <label class="login-fullscope">
+              <input type="checkbox" id="oauth-full" />
+              I also edit the private backend (authorities, bibliography)
+            </label>
+          </div>
+
           <p class="login-note">
             The data lives in the <strong>epiwen</strong> organisation, so the token
             needs access to it. Either kind works:
@@ -141,6 +154,9 @@
       </div>
     </main>
 
+    <!-- Public OAuth settings (client id + worker URL). No secret here — the
+         button below stays hidden until both are filled in. -->
+    <script src="oauth-config.js?v=1"></script>
     <script>
       (function () {
         "use strict";
@@ -188,6 +204,25 @@
           window.location.replace(returnUrl);
         }
 
+        /* Persist a verified token + its GitHub identity, then continue.
+           Shared by the pasted-token path and the OAuth callback below. */
+        function storeIdentity(token, user) {
+          localStorage.setItem(LS.token,    token);
+          localStorage.setItem(LS.username, user.login);
+          localStorage.setItem(LS.avatar,   user.avatar_url || "");
+          localStorage.setItem(LS.name,     user.name       || "");
+          /* A real GitHub sign-in uses the canonical private data backend.
+             Set it unconditionally so a leftover guest/workshop backend
+             (epiwen-workshop, from the now-retired "Browse as guest"
+             button — some browsers may still carry it) doesn't persist
+             and break EpiData reads like the map atlas or bibliography. */
+          localStorage.setItem("epiwen_gh_owner",  "epiwen");
+          localStorage.setItem("epiwen_gh_repo",   "epiwen-data");
+          localStorage.setItem("epiwen_gh_branch", "main");
+          localStorage.setItem("epiwen_gh_path",   "records/");
+          startSession(user.login);
+        }
+
         function setSigninBusy(busy) {
           var btn = document.getElementById("btn-signin");
           if (busy) {
@@ -214,6 +249,72 @@
             }
           });
         }
+
+        /* ---- "Sign in with GitHub" (OAuth) ----------------------------------
+           Only active once oauth-config.js carries a clientId AND a workerUrl;
+           otherwise the button stays hidden and the token paste below is the
+           only way in — so an unconfigured deployment still works. */
+        var OA = window.EpiOAuth || {};
+        var oauthReady = !!(OA.clientId && OA.workerUrl);
+        var STATE_KEY = "epiwen_oauth_state";
+
+        function beginOAuth(full) {
+          /* state = CSRF guard: GitHub echoes it back and we compare. */
+          var state;
+          try {
+            var buf = new Uint8Array(16);
+            crypto.getRandomValues(buf);
+            state = Array.prototype.map.call(buf, function (b) {
+              return ("0" + b.toString(16)).slice(-2);
+            }).join("");
+          } catch (e) { state = String(Date.now()) + Math.random().toString(16).slice(2); }
+          sessionStorage.setItem(STATE_KEY, state);
+          /* Come back to THIS page, keeping the caller's ?r= return target. */
+          var redirect = window.location.origin + window.location.pathname +
+                         "?r=" + encodeURIComponent(returnUrl);
+          window.location.href =
+            "https://github.com/login/oauth/authorize" +
+            "?client_id="    + encodeURIComponent(OA.clientId) +
+            "&scope="        + encodeURIComponent(full ? (OA.scopeFull || "repo") : (OA.scope || "public_repo")) +
+            "&state="        + encodeURIComponent(state) +
+            "&redirect_uri=" + encodeURIComponent(redirect);
+        }
+
+        /* Returning from GitHub with ?code=&state= — swap it for a token. */
+        function finishOAuth(code, state) {
+          var expected = sessionStorage.getItem(STATE_KEY);
+          sessionStorage.removeItem(STATE_KEY);
+          /* Strip code/state from the URL so a reload can't replay them. */
+          try {
+            history.replaceState({}, "", window.location.pathname +
+              "?r=" + encodeURIComponent(returnUrl));
+          } catch (e) {}
+          if (!expected || state !== expected) {
+            showFresh(); showError("Sign-in could not be verified (state mismatch). Please try again.");
+            return;
+          }
+          var ff = document.getElementById("fresh-form");
+          if (ff) ff.style.display = "";
+          setSigninBusy(true);
+          fetch(OA.workerUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: code })
+          })
+            .then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (d) {
+              if (!d.access_token) throw new Error(d.error || "Could not complete GitHub sign-in.");
+              return verifyToken(d.access_token).then(function (r) {
+                if (!r.ok) throw new Error("GitHub returned HTTP " + r.status + " for the new token.");
+                return r.json().then(function (user) { storeIdentity(d.access_token, user); });
+              });
+            })
+            .catch(function (err) { showFresh(); showError(err.message); });
+        }
+
+        var oaCode  = params.get("code");
+        var oaState = params.get("state");
+        if (oauthReady && oaCode) { finishOAuth(oaCode, oaState); return; }
 
         /* ---- Mode: returning user ---- */
         if (storedUser) {
@@ -255,7 +356,16 @@
         function showFresh() {
           var ff = document.getElementById("fresh-form");
           ff.style.display = "";
-          document.getElementById("pat-input").focus();
+
+          if (oauthReady) {
+            /* OAuth is the easy path — lead with it, keep the token as fallback. */
+            document.getElementById("oauth-block").style.display = "";
+            document.getElementById("btn-oauth").addEventListener("click", function () {
+              beginOAuth(document.getElementById("oauth-full").checked);
+            });
+          } else {
+            document.getElementById("pat-input").focus();
+          }
 
           /* Show / hide toggle */
           document.getElementById("pat-toggle").addEventListener("click", function () {
@@ -281,23 +391,7 @@
                 if (!r.ok) throw new Error("GitHub returned HTTP " + r.status + ". Check your token and try again.");
                 return r.json();
               })
-              .then(function (user) {
-                /* Store identity */
-                localStorage.setItem(LS.token,    token);
-                localStorage.setItem(LS.username, user.login);
-                localStorage.setItem(LS.avatar,   user.avatar_url || "");
-                localStorage.setItem(LS.name,     user.name       || "");
-                /* A real GitHub sign-in uses the canonical private data backend.
-                   Set it unconditionally so a leftover guest/workshop backend
-                   (epiwen-workshop, from the now-retired "Browse as guest"
-                   button — some browsers may still carry it) doesn't persist
-                   and break EpiData reads like the map atlas or bibliography. */
-                localStorage.setItem("epiwen_gh_owner",  "epiwen");
-                localStorage.setItem("epiwen_gh_repo",   "epiwen-data");
-                localStorage.setItem("epiwen_gh_branch", "main");
-                localStorage.setItem("epiwen_gh_path",   "records/");
-                startSession(user.login);
-              })
+              .then(function (user) { storeIdentity(token, user); })
               .catch(function (err) {
                 showError(err.message);
               });

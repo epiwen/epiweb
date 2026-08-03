@@ -909,3 +909,10 @@ textarea.mono { font-family: "SF Mono", Menlo, monospace; }
 .login-tokens { text-align: left; padding-left: 1.1rem; margin: 0.35rem 0 0; }
 .login-tokens li { margin-bottom: 0.4rem; line-height: 1.5; }
 .login-tokens code { font-size: 0.92em; }
+/* ---- login: OAuth block ---- */
+.login-or { display: flex; align-items: center; gap: .6rem; margin: .9rem 0 .7rem; color: var(--muted); font-size: .76rem; }
+.login-or::before, .login-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.btn-oauth { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; background: #1f2328; color: #fff; border-color: #1f2328; }
+.btn-oauth:hover { background: #32383f; border-color: #32383f; }
+.login-fullscope { display: flex; align-items: flex-start; gap: .4rem; margin-top: .55rem; font-size: .76rem; color: var(--muted); text-align: left; line-height: 1.4; }
+.login-fullscope input { width: auto; margin: .15rem 0 0; flex: 0 0 auto; }
