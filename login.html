@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Epiwen · Sign in</title>
-    <link rel="stylesheet" href="styles.css?v=2" />
+    <link rel="stylesheet" href="styles.css?v=3" />
     <style>
       /* ---- avatar chip (returning-user state) ---- */
       .login-avatar-row {
@@ -112,11 +112,29 @@
           </button>
 
           <p class="login-note">
-            Generate a token at
-            <a href="https://github.com/settings/tokens/new?scopes=repo&description=Epiwen"
-               target="_blank" rel="noopener">GitHub → Settings → Developer settings</a>
-            with <strong>repo</strong> scope
-            (or <strong>public_repo</strong> if the repository is public).
+            The data lives in the <strong>epiwen</strong> organisation, so the token
+            needs access to it. Either kind works:
+          </p>
+          <ul class="login-note login-tokens">
+            <li>
+              <a href="https://github.com/settings/tokens/new?scopes=repo&description=Epiwen"
+                 target="_blank" rel="noopener">Classic token</a> —
+              <strong>repo</strong> scope for everything (incl. the private backend
+              <code>epiwen-data</code>), or <strong>public_repo</strong> if you only
+              edit the public corpus (places, rubbings, records).
+            </li>
+            <li>
+              <a href="https://github.com/settings/personal-access-tokens/new"
+                 target="_blank" rel="noopener">Fine-grained token</a> —
+              set <em>Resource owner</em> to <strong>epiwen</strong> (not your own
+              account) and grant <strong>Contents: Read and write</strong> on the
+              repositories you edit. Some organisations require an owner to approve
+              fine-grained tokens.
+            </li>
+          </ul>
+          <p class="login-note">
+            A token cannot grant access you do not already have — you also need write
+            permission on the repository itself.
             The token is stored only in this browser — never transmitted to Epiwen servers.
           </p>
         </form>
